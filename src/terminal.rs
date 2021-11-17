@@ -35,14 +35,17 @@ impl Terminal {
         &self.size
     }
 
-    /// Clears the whole terminal
-    pub fn clear_screen() {
-        print!("{}", termion::clear::All);
-    }
-
     /// Clears the line the cursor is currently on
     pub fn clear_current_line() {
         print!("{}", termion::clear::CurrentLine);
+    }
+
+    /// Clear the screen
+    pub fn clear_screen(&self) {
+        for _ in 0..self.size().height - 1 {
+            Terminal::clear_current_line();
+            println!("\r");
+        }
     }
 
     /// Moves the terminal cursor (not necessarily the same as the editor cursor)
@@ -68,14 +71,6 @@ impl Terminal {
             if let Some(key) = io::stdin().lock().keys().next() {
                 return key;
             }
-        }
-    }
-
-    /// Draw square brackets down the left side of the screen, my take on the vim classic
-    pub fn draw_brackets(&self) {
-        for _ in 0..self.size().height - 1 {
-            Terminal::clear_current_line();
-            println!("]\r");
         }
     }
 

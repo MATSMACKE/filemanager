@@ -8,8 +8,9 @@ struct Position {
 
 enum Mode {
     Normal,
-    Insert,
-    Select
+    Select,
+    Command,
+    Insert
 }
 
 pub struct Editor {
@@ -57,7 +58,7 @@ impl Editor {
             Terminal::show_cursor(true);
         }
         else {
-            self.terminal.draw_brackets();
+            self.terminal.clear_screen();
             self.display_cursor();
             print!("{}", self.cursor.y);
         }
@@ -73,10 +74,37 @@ impl Editor {
                     Key::Ctrl('q') => self.should_quit = true,
                     Key::Up => self.move_cursor(0, -1),
                     Key::Down => self.move_cursor(0, 1),
+                    Key::Char(c) => {
+                        match c {
+                            ':' => {
+                                self.mode = Mode::Command;
+                            },
+                            'i' => {
+                                self.mode = Mode::Insert;
+                            },
+                            'v' => {
+                                self.mode = Mode::Select;
+                            }
+                            _ => ()
+                        }
+                    },
+                    _ => ()
+                }
+            },
+            Mode::Command => {
+                match pressed_key {
+                    Key::Ctrl('q') => self.should_quit = true,
                     Key::Left => self.move_cursor(-1, 0),
                     Key::Right => self.move_cursor(1, 0),
-                    Key::Char(c) => (),
-                    _ => ()
+                    Key::Char('\n') => {
+
+                    }
+                    Key::Char(c) => {
+                        
+                    },
+                    _ => {
+
+                    }
                 }
             },
             Mode::Insert => {
