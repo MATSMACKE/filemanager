@@ -1,6 +1,5 @@
 use std::fs;
-use std::path::{Path, PathBuf};
-use std::ffi::OsStr;
+use std::path::{Path};
 
 /// A function to return the lines in a document as a `Vec<String>` (a lovely datatype to work with)
 /// 
@@ -11,7 +10,7 @@ use std::ffi::OsStr;
 /// - Binary file (potentially)
 pub fn read_file_to_vec(path: &str) -> std::io::Result<Vec<String>> {
     let filestring: String = fs::read_to_string(path)?;
-    let vec: Vec<String> = filestring.split('\n').map(|x| x.to_string()).collect();
+    let vec: Vec<String> = filestring.split('\n').map(std::string::ToString::to_string).collect();
     Ok(vec)
 }
 
@@ -23,7 +22,7 @@ pub fn read_file_to_vec(path: &str) -> std::io::Result<Vec<String>> {
 /// # Errors
 /// - Path does not exist
 /// - No sudo permissions could cause issues
-pub fn get_items_to_vec(path: &PathBuf) -> std::io::Result<Vec<String>> {
+pub fn get_items_to_vec(path: &Path) -> std::io::Result<Vec<String>> {
     let mut vec: Vec<String> = Vec::new();
     for item in fs::read_dir(path)? {
         vec.push(item.unwrap().file_name().into_string().unwrap());
