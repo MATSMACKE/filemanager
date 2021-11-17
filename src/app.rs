@@ -1,7 +1,8 @@
-use crate::Terminal;
+use crate::{Terminal, get_items_to_vec, read_file_to_vec};
 use termion::event::Key;
 use std::fs;
-use std::path::Path;
+use std::env;
+use std::path::{Path, PathBuf};
 
 struct Position {
     x: usize,
@@ -21,25 +22,28 @@ pub struct App {
     cursor: Position,
     scroll: usize,
     mode: Mode,
-    text: String,
-    refresh_dir: bool
+    refresh_dir: bool,
+    items_in_dir: Vec<String>,
+    current_dir: PathBuf,
 }
 
 impl App {
     pub fn run(&mut self) {
         loop {
-            if self.refresh_dir {
-                
-            }
-
-            if let Err(error) = self.refresh_screen() {
-                die(&error);
-            }
-
             // Stop the program if the should_quit flag is "true"
             if self.should_quit {
                 self.terminal.clean();
                 break
+            }
+
+            if self.refresh_dir {
+                if let Ok(items) = get_items_to_vec(&self.current_dir) {
+                    self.items_in_dir = items;
+                }
+            }
+
+            if let Err(error) = self.refresh_screen() {
+                die(&error);
             }
 
             if let Err(error) = self.process_keypress() {
@@ -56,8 +60,9 @@ impl App {
             cursor: Position {x: 0, y: 0},
             scroll: 0,
             mode: Mode::Normal,
-            text: String::from("Does not exist"),
             refresh_dir: true,
+            items_in_dir: Vec::new(),
+            current_dir: env::current_dir().unwrap(),
         }
     }
 
@@ -73,7 +78,6 @@ impl App {
             self.display_cursor();
             print!("{}", self.cursor.y);
         }
-        print!("{}", self.text);
         Terminal::flush()
     }
 
@@ -173,6 +177,7 @@ impl App {
     }
 
     fn display_cursor(&self) {
+        // To future me: Use self.scroll, self.cursor.x and self.cursor.y, shouldn't need any more
         Terminal::move_cursor_to(self.cursor.x as u16, self.cursor.y as u16 - self.scroll as u16);
     }
 }
