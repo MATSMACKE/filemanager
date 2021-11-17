@@ -1,11 +1,12 @@
 #![warn(clippy::all, clippy::pedantic)]
-mod editor;
+mod app;
 mod terminal;
 mod filesystem;
 
-use editor::Editor;
+use app::App;
 pub use terminal::Terminal;
+pub use filesystem::{get_items_to_vec, read_file_to_vec};
 
 fn main() {
-    Editor::default().run();
+    App::default().run();
 }

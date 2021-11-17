@@ -1,5 +1,7 @@
 use crate::Terminal;
 use termion::event::Key;
+use std::fs;
+use std::path::Path;
 
 struct Position {
     x: usize,
@@ -13,23 +15,30 @@ enum Mode {
     Insert
 }
 
-pub struct Editor {
+pub struct App {
     should_quit: bool,
     terminal: Terminal,
     cursor: Position,
     scroll: usize,
     mode: Mode,
+    text: String,
+    refresh_dir: bool
 }
 
-impl Editor {
+impl App {
     pub fn run(&mut self) {
         loop {
+            if self.refresh_dir {
+                
+            }
+
             if let Err(error) = self.refresh_screen() {
                 die(&error);
             }
 
             // Stop the program if the should_quit flag is "true"
             if self.should_quit {
+                self.terminal.clean();
                 break
             }
 
@@ -37,15 +46,18 @@ impl Editor {
                 die(&error);
             }
         }
+        println!("Have a nice day :)) \n\r - The Dev\n\r");
     }
 
     pub fn default() -> Self {
-        Editor{
+        App{
             should_quit: false,
             terminal: Terminal::default().expect("Terminal initialisation failed."),
             cursor: Position {x: 0, y: 0},
             scroll: 0,
             mode: Mode::Normal,
+            text: String::from("Does not exist"),
+            refresh_dir: true,
         }
     }
 
@@ -54,7 +66,6 @@ impl Editor {
         Terminal::show_cursor(false);
         Terminal::move_cursor_to(0, 0);
         if self.should_quit {
-            println!("Have a nice day :))");
             Terminal::show_cursor(true);
         }
         else {
@@ -62,6 +73,7 @@ impl Editor {
             self.display_cursor();
             print!("{}", self.cursor.y);
         }
+        print!("{}", self.text);
         Terminal::flush()
     }
 
@@ -96,6 +108,7 @@ impl Editor {
                     Key::Ctrl('q') => self.should_quit = true,
                     Key::Left => self.move_cursor(-1, 0),
                     Key::Right => self.move_cursor(1, 0),
+                    Key::Esc => self.mode = Mode::Normal,
                     Key::Char('\n') => {
 
                     }
@@ -108,16 +121,44 @@ impl Editor {
                 }
             },
             Mode::Insert => {
-
+                match pressed_key {
+                    Key::Ctrl('q') => self.should_quit = true,
+                    Key::Up => self.move_cursor(0, -1),
+                    Key::Down => self.move_cursor(0, 1),
+                    Key::Esc => self.mode = Mode::Normal,
+                    Key::Char(c) => {
+                        match c {
+                            _ => ()
+                        }
+                    },
+                    _ => ()
+                }
             },
             Mode::Select => {
-
+                match pressed_key {
+                    Key::Ctrl('q') => self.should_quit = true,
+                    Key::Up => self.move_cursor(0, -1),
+                    Key::Down => self.move_cursor(0, 1),
+                    Key::Esc => self.mode = Mode::Normal,
+                    Key::Char(c) => {
+                        match c {
+                            ':' => {
+                                self.mode = Mode::Command;
+                            },
+                            'i' => {
+                                self.mode = Mode::Insert;
+                            },
+                            _ => ()
+                        }
+                    },
+                    _ => ()
+                }
             }
         }
         Ok(())
     }
 
-    /// Move the editor cursor (not necessarily the same as `Terminal::move_cursor`)
+    /// Move the app cursor (not necessarily the same as `Terminal::move_cursor`)
     fn move_cursor(&mut self, x: isize, y: isize) {
         match x {
             0 => {},
@@ -132,7 +173,7 @@ impl Editor {
     }
 
     fn display_cursor(&self) {
-        Terminal::move_cursor_to(self.cursor.x as u16, self.cursor.y as u16);
+        Terminal::move_cursor_to(self.cursor.x as u16, self.cursor.y as u16 - self.scroll as u16);
     }
 }
 
