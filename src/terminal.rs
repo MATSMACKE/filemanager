@@ -1,5 +1,4 @@
 use std::io::{self, stdout, Write};
-use crate::Position;
 use termion::event::Key;
 use termion::input::TermRead;
 use termion::raw::{IntoRawMode, RawTerminal};

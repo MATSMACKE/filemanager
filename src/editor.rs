@@ -1,8 +1,7 @@
 use crate::Terminal;
-use crate::Document;
 use termion::event::Key;
 
-pub struct Position {
+struct Position {
     x: usize,
     y: usize
 }
