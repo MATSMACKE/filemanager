@@ -48,7 +48,7 @@ impl Terminal {
         }
     }
 
-    /// Moves the terminal cursor (not necessarily the same as the editor cursor)
+    /// Moves the terminal cursor (not necessarily the same as the app cursor)
     pub fn move_cursor(x: u16, y: u16) {
         let x = x.saturating_add(1);
         let y = y.saturating_add(1);
@@ -59,6 +59,12 @@ impl Terminal {
         let x = x.saturating_add(1);
         let y = y.saturating_add(1);
         print!("{}", termion::cursor::Goto(x, y));
+    }
+
+    /// Reset the terminal, removing any artifacts
+    pub fn clean(&self) {
+        self.clear_screen();
+        Terminal::move_cursor_to(0, 0);
     }
 
     pub fn flush() -> Result<(), std::io::Error> {
