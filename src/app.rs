@@ -88,6 +88,17 @@ impl App {
             Terminal::move_cursor_to(0, 0);
             self.print_lines();
             self.display_cursor();
+            match self.mode {
+                Mode::Command => {
+                    Terminal::move_cursor_to(0, self.terminal.dimensions().height);
+                    print!(":{}", self.command);
+                },
+                Mode::Insert => {
+
+                }
+                _ => ()
+            }
+            Terminal::move_cursor_to(0, 0);
         }
         Terminal::flush()
     }
@@ -117,106 +128,130 @@ impl App {
         let pressed_key = Terminal::read_key()?;
         match self.mode {
             Mode::Normal => {
-                match pressed_key {
-                    Key::Ctrl('q') => self.should_quit = true,
-                    Key::Up | Key::Char('k') => {
-                        if self.repeats > 0 {
-                            for _ in 0..self.repeats {
-                                self.move_cursor(0, -1);
-                            }
-                            self.repeats = 0;
-                        }
-                        else {
-                            self.move_cursor(0, -1);
-                        }
-                    },
-                    Key::Down | Key::Char('j') => {
-                        if self.repeats > 0 {
-                            for _ in 0..self.repeats {
-                                self.move_cursor(0, 1);
-                            }
-                            self.repeats = 0;
-                        }
-                        else {
-                            self.move_cursor(0, 1);
-                        }
-                    },
-                    Key::Char(c) => {
-                        if c.is_numeric() {
-                            self.repeats *= 10;
-                            self.repeats += c.to_digit(10).unwrap() as usize;
-                        }
-                        else {
-                            match c {
-                                ':' => {
-                                    self.mode = Mode::Command;
-                                },
-                                'i' => {
-                                    self.mode = Mode::Insert;
-                                },
-                                'v' => {
-                                    self.mode = Mode::Select;
-                                }
-                                _ => ()
-                            }
-                        }
-                    },
-                    _ => ()
-                }
+                self.keypress_normal(pressed_key);
             },
             Mode::Command => {
-                match pressed_key {
-                    Key::Ctrl('q') => self.should_quit = true,
-                    Key::Left => self.move_cursor(-1, 0),
-                    Key::Right => self.move_cursor(1, 0),
-                    Key::Esc => self.mode = Mode::Normal,
-                    Key::Char('\n') => {
-
-                    }
-                    Key::Char(c) => {
-                        
-                    },
-                    _ => {
-
-                    }
-                }
+                self.keypress_command(pressed_key);
             },
             Mode::Insert => {
-                match pressed_key {
-                    Key::Ctrl('q') => self.should_quit = true,
-                    Key::Up => self.move_cursor(0, -1),
-                    Key::Down => self.move_cursor(0, 1),
-                    Key::Esc => self.mode = Mode::Normal,
-                    Key::Char(c) => {
-                        match c {
-                            _ => ()
-                        }
-                    },
-                    _ => ()
-                }
+                self.keypress_insert(pressed_key);
             },
             Mode::Select => {
-                match pressed_key {
-                    Key::Ctrl('q') => self.should_quit = true,
-                    Key::Up => self.move_cursor(0, -1),
-                    Key::Down => self.move_cursor(0, 1),
-                    Key::Esc => self.mode = Mode::Normal,
-                    Key::Char(c) => {
-                        match c {
-                            ':' => {
-                                self.mode = Mode::Command;
-                            },
-                            'i' => {
-                                self.mode = Mode::Insert;
-                            },
-                            _ => ()
-                        }
-                    },
-                    _ => ()
-                }
+                self.keypress_select(pressed_key);
             }
         }
         Ok(())
+    }
+
+    /// Handle a keypress in Normal mode
+    fn keypress_normal(&mut self, key: termion::event::Key) {
+        match key {
+            Key::Ctrl('q') => self.should_quit = true,
+            Key::Up | Key::Char('k') => {
+                if self.repeats > 0 {
+                    for _ in 0..self.repeats {
+                        self.move_cursor(0, -1);
+                    }
+                    self.repeats = 0;
+                }
+                else {
+                    self.move_cursor(0, -1);
+                }
+            },
+            Key::Down | Key::Char('j') => {
+                if self.repeats > 0 {
+                    for _ in 0..self.repeats {
+                        self.move_cursor(0, 1);
+                    }
+                    self.repeats = 0;
+                }
+                else {
+                    self.move_cursor(0, 1);
+                }
+            },
+            Key::Char(c) => {
+                if c.is_numeric() {
+                    self.repeats *= 10;
+                    self.repeats += c.to_digit(10).unwrap() as usize;
+                }
+                else {
+                    match c {
+                        ':' => {
+                            self.mode = Mode::Command;
+                        },
+                        'i' => {
+                            self.mode = Mode::Insert;
+                        },
+                        'v' => {
+                            self.mode = Mode::Select;
+                        }
+                        _ => ()
+                    }
+                }
+            },
+            _ => ()
+        }
+    }
+
+    /// Handle a keypress in Command mode
+    fn keypress_command(&mut self, key: termion::event::Key) {
+        match key {
+            Key::Ctrl('q') => self.should_quit = true,
+            Key::Left => self.move_cursor(-1, 0),
+            Key::Right => self.move_cursor(1, 0),
+            Key::Esc => self.set_mode(Mode::Normal),
+            Key::Char('\n') => {
+                self.set_mode(Mode::Normal);
+                self.execute_command();
+            }
+            Key::Char(c) => {
+                self.command.push(c);
+            },
+            _ => ()
+        }
+    }
+
+    /// Handle a keypress in Insert mode
+    fn keypress_insert(&mut self, key: termion::event::Key) {
+        match key {
+            Key::Ctrl('q') => self.should_quit = true,
+            Key::Up => self.move_cursor(0, -1),
+            Key::Down => self.move_cursor(0, 1),
+            Key::Esc => self.set_mode(Mode::Normal),
+            Key::Char(c) => {
+                match c {
+                    _ => ()
+                }
+            },
+            _ => ()
+        }
+    }
+
+    fn keypress_select(&mut self, key: termion::event::Key) {
+        match key {
+            Key::Ctrl('q') => self.should_quit = true,
+            Key::Up => self.move_cursor(0, -1),
+            Key::Down => self.move_cursor(0, 1),
+            Key::Esc => self.mode = Mode::Normal,
+            Key::Char(c) => {
+                match c {
+                    ':' => {
+                        self.set_mode(Mode::Command);
+                    },
+                    'i' => {
+                        self.set_mode(Mode::Insert);
+                    },
+                    _ => ()
+                }
+            },
+            _ => ()
+        }
+    }
+
+    fn execute_command(&mut self) {
+        if self.command == "q" {
+            self.should_quit = true;
+        }
     }
 
     /// Move the app cursor (not necessarily the same as `Terminal::move_cursor`)
@@ -240,6 +275,10 @@ impl App {
     fn display_cursor(&self) {
         // To future me: Use self.scroll, self.cursor.x and self.cursor.y, shouldn't need any more
         Terminal::move_cursor_to(self.cursor.x as u16, self.cursor.y as u16 - self.scroll as u16);
+    }
+
+    fn set_mode(&mut self, mode: Mode) {
+        self.mode = mode;
     }
 }
 
