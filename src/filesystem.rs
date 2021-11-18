@@ -16,9 +16,6 @@ pub fn read_file_to_vec(path: &Path) -> std::io::Result<Vec<String>> {
 
 /// A function to read the files and folders in a given directory and returns them as a `Vec<String>`
 /// 
-/// # Panics
-/// I'm starting to regret setting Clippy to pedantic
-/// 
 /// # Errors
 /// - Path does not exist
 /// - No sudo permissions could cause issues
