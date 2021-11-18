@@ -1,8 +1,7 @@
 use crate::{Terminal, get_items_to_vec, read_file_to_vec};
 use termion::event::Key;
-use std::fs;
 use std::env;
-use std::path::{Path, PathBuf};
+use std::path::{PathBuf};
 
 struct Position {
     x: usize,
@@ -23,8 +22,11 @@ pub struct App {
     scroll: usize,
     mode: Mode,
     refresh_dir: bool,
-    items_in_dir: Vec<String>,
+    dirs_in_dir: Vec<String>,
+    files_in_dir: Vec<String>,
     current_dir: PathBuf,
+    repeats: usize,
+    command: String,
 }
 
 impl App {
@@ -33,12 +35,18 @@ impl App {
             // Stop the program if the should_quit flag is "true"
             if self.should_quit {
                 self.terminal.clean();
+                Terminal::show_cursor(true);
                 break
             }
 
             if self.refresh_dir {
                 if let Ok(items) = get_items_to_vec(&self.current_dir) {
-                    self.items_in_dir = items;
+                    self.dirs_in_dir = items.0;
+                    self.files_in_dir = items.1;
+
+                    self.dirs_in_dir.sort_by_key(|s| s.to_lowercase());
+                    self.files_in_dir.sort_by_key(|s| s.to_lowercase());
+
                 }
             }
 
@@ -61,8 +69,11 @@ impl App {
             scroll: 0,
             mode: Mode::Normal,
             refresh_dir: true,
-            items_in_dir: Vec::new(),
+            dirs_in_dir: Vec::new(),
+            files_in_dir: Vec::new(),
             current_dir: env::current_dir().unwrap(),
+            repeats: 0,
+            command: String::new(),
         }
     }
 
@@ -71,14 +82,34 @@ impl App {
         Terminal::show_cursor(false);
         Terminal::move_cursor_to(0, 0);
         if self.should_quit {
-            Terminal::show_cursor(true);
         }
         else {
             self.terminal.clear_screen();
+            Terminal::move_cursor_to(0, 0);
+            self.print_lines();
             self.display_cursor();
-            print!("{}", self.cursor.y);
         }
         Terminal::flush()
+    }
+
+    /// The function that actually displays stuff to the screen
+    fn print_lines(&self) {
+        for (i, item) in self.dirs_in_dir.iter().enumerate() {
+            if i == self.cursor.y {
+                Terminal::print_blue_invert(item);
+            }
+            else {
+                Terminal::print_blue(item);
+            }
+        }
+        for (i, item) in self.files_in_dir.iter().enumerate() {
+            if i + self.dirs_in_dir.len() == self.cursor.y {
+                Terminal::print_invert(item);
+            }
+            else {
+                print!("{}\n\r", item);
+            }
+        }
     }
 
     /// Get keypress and handle it appropriately
@@ -88,20 +119,46 @@ impl App {
             Mode::Normal => {
                 match pressed_key {
                     Key::Ctrl('q') => self.should_quit = true,
-                    Key::Up => self.move_cursor(0, -1),
-                    Key::Down => self.move_cursor(0, 1),
-                    Key::Char(c) => {
-                        match c {
-                            ':' => {
-                                self.mode = Mode::Command;
-                            },
-                            'i' => {
-                                self.mode = Mode::Insert;
-                            },
-                            'v' => {
-                                self.mode = Mode::Select;
+                    Key::Up | Key::Char('k') => {
+                        if self.repeats > 0 {
+                            for _ in 0..self.repeats {
+                                self.move_cursor(0, -1);
                             }
-                            _ => ()
+                            self.repeats = 0;
+                        }
+                        else {
+                            self.move_cursor(0, -1);
+                        }
+                    },
+                    Key::Down | Key::Char('j') => {
+                        if self.repeats > 0 {
+                            for _ in 0..self.repeats {
+                                self.move_cursor(0, 1);
+                            }
+                            self.repeats = 0;
+                        }
+                        else {
+                            self.move_cursor(0, 1);
+                        }
+                    },
+                    Key::Char(c) => {
+                        if c.is_numeric() {
+                            self.repeats *= 10;
+                            self.repeats += c.to_digit(10).unwrap() as usize;
+                        }
+                        else {
+                            match c {
+                                ':' => {
+                                    self.mode = Mode::Command;
+                                },
+                                'i' => {
+                                    self.mode = Mode::Insert;
+                                },
+                                'v' => {
+                                    self.mode = Mode::Select;
+                                }
+                                _ => ()
+                            }
                         }
                     },
                     _ => ()
@@ -169,10 +226,14 @@ impl App {
             1.. => self.cursor.x = self.cursor.x.saturating_add(x as usize),
             _ => self.cursor.x = self.cursor.x.saturating_sub((-1*x) as usize)
         }
+        
         match y {
             0 => {},
             1.. => self.cursor.y = self.cursor.y.saturating_add(y as usize),
             _ => self.cursor.y = self.cursor.y.saturating_sub((-1*y) as usize)
+        }
+        if self.cursor.y >= self.dirs_in_dir.len() + self.files_in_dir.len() {
+            self.cursor.y = self.dirs_in_dir.len() + self.files_in_dir.len() - 1;
         }
     }
 
