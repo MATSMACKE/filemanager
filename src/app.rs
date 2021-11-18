@@ -252,6 +252,7 @@ impl App {
         if self.command == "q" {
             self.should_quit = true;
         }
+        self.command = String::from("");
     }
 
     /// Move the app cursor (not necessarily the same as `Terminal::move_cursor`)
