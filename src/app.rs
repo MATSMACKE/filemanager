@@ -1,4 +1,4 @@
-use crate::{Terminal, get_items_to_vec, read_file_to_vec};
+use crate::{Terminal, get_items_to_vec};
 use termion::event::Key;
 use std::env;
 use std::path::{PathBuf};
@@ -224,13 +224,13 @@ impl App {
         match x {
             0 => {},
             1.. => self.cursor.x = self.cursor.x.saturating_add(x as usize),
-            _ => self.cursor.x = self.cursor.x.saturating_sub((-1*x) as usize)
+            _ => self.cursor.x = self.cursor.x.saturating_sub((-x) as usize)
         }
         
         match y {
             0 => {},
             1.. => self.cursor.y = self.cursor.y.saturating_add(y as usize),
-            _ => self.cursor.y = self.cursor.y.saturating_sub((-1*y) as usize)
+            _ => self.cursor.y = self.cursor.y.saturating_sub((-y) as usize)
         }
         if self.cursor.y >= self.dirs_in_dir.len() + self.files_in_dir.len() {
             self.cursor.y = self.dirs_in_dir.len() + self.files_in_dir.len() - 1;
