@@ -1,8 +1,8 @@
 use std::fs;
-use std::path::{Path};
+use std::path::Path;
 
 /// A function to return the lines in a document as a `Vec<String>` (a lovely datatype to work with)
-/// 
+///
 /// # Errors
 /// - File does not exist
 /// - No sudo permissions
@@ -10,12 +10,15 @@ use std::path::{Path};
 /// - Binary file (potentially)
 pub fn read_file_to_vec(path: &Path) -> std::io::Result<Vec<String>> {
     let filestring: String = fs::read_to_string(path)?;
-    let vec: Vec<String> = filestring.split('\n').map(std::string::ToString::to_string).collect();
+    let vec: Vec<String> = filestring
+        .split('\n')
+        .map(std::string::ToString::to_string)
+        .collect();
     Ok(vec)
 }
 
 /// A function to read the files and folders in a given directory and returns them as a `Vec<String>`
-/// 
+///
 /// # Errors
 /// - Path does not exist
 /// - No sudo permissions could cause issues

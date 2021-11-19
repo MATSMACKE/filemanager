@@ -12,7 +12,7 @@ pub struct Dimensions {
 /// This struct interfaces with the terminal to display all there is to display
 pub struct Terminal {
     dimensions: Dimensions,
-    _stdout: RawTerminal<std::io::Stdout>
+    _stdout: RawTerminal<std::io::Stdout>,
 }
 
 impl Terminal {
@@ -26,10 +26,9 @@ impl Terminal {
                 width: dimensions.0,
                 height: dimensions.1,
             },
-            _stdout: stdout().into_raw_mode()?
+            _stdout: stdout().into_raw_mode()?,
         })
     }
-
 
     /// Getter for the size of the terminal
     pub fn dimensions(&self) -> &Dimensions {
@@ -37,15 +36,32 @@ impl Terminal {
     }
 
     pub fn print_invert(text: &str) {
-        print!("{}{}{}\n\r", termion::style::Invert, text, termion::style::Reset);
+        print!(
+            "{}{}{}\n\r",
+            termion::style::Invert,
+            text,
+            termion::style::Reset
+        );
     }
 
     pub fn print_blue_invert(text: &str) {
-        print!("{}{}{}{}{}\n\r", termion::style::Invert, termion::color::Fg(termion::color::Blue), termion::color::Fg(termion::color::White), text, termion::style::Reset);
+        print!(
+            "{}{}{}{}{}\n\r",
+            termion::style::Invert,
+            termion::color::Fg(termion::color::Blue),
+            termion::color::Fg(termion::color::White),
+            text,
+            termion::style::Reset
+        );
     }
 
     pub fn print_blue(text: &str) {
-        print!("{}{}{}\n\r", termion::color::Fg(termion::color::Blue), text, termion::style::Reset);
+        print!(
+            "{}{}{}\n\r",
+            termion::color::Fg(termion::color::Blue),
+            text,
+            termion::style::Reset
+        );
     }
 
     /// Clears the line the cursor is currently on
@@ -68,20 +84,14 @@ impl Terminal {
         print!("{}", termion::cursor::Goto(x, y));
     }
 
-    pub fn move_cursor_to(x: u16, y: u16) {
-        let x = x.saturating_add(1);
-        let y = y.saturating_add(1);
-        print!("{}", termion::cursor::Goto(x, y));
-    }
-
     /// Reset the terminal, removing any artifacts
     pub fn clean(&self) {
         self.clear_screen();
-        Terminal::move_cursor_to(0, 0);
+        Terminal::move_cursor(0, 0);
     }
 
     /// A wrapper around `io::stdout().flush()` to make stuff nice over in app.rs
-    /// 
+    ///
     /// # Errors
     /// - Honestly no clue, just there for safety
     pub fn flush() -> Result<(), std::io::Error> {
@@ -89,7 +99,7 @@ impl Terminal {
     }
 
     /// Wait for a key to be pressed and return it
-    /// 
+    ///
     /// # Errors
     /// - Once again, no clue, just there to be safe
     pub fn read_key() -> Result<Key, std::io::Error> {

@@ -1,30 +1,29 @@
-use crate::{Terminal, get_items_to_vec};
-use termion::event::Key;
+use crate::{get_items_to_vec, Terminal, utils};
 use std::env;
-use std::path::{PathBuf};
+use std::path::PathBuf;
+use termion::event::Key;
 
-struct Position {
-    x: usize,
-    y: usize
-}
 
 enum Mode {
     Normal,
     Select,
     Command,
-    Insert
 }
 
 pub struct App {
     should_quit: bool,
     terminal: Terminal,
-    cursor: Position,
+    cursor: usize,
+    parent_cursor: usize,
     scroll: usize,
     mode: Mode,
     refresh_dir: bool,
     dirs_in_dir: Vec<String>,
     files_in_dir: Vec<String>,
+    dirs_in_parent: Vec<String>,
+    files_in_parent: Vec<String>,
     current_dir: PathBuf,
+    parent_dir: PathBuf,
     repeats: usize,
     command: String,
 }
@@ -36,7 +35,7 @@ impl App {
             if self.should_quit {
                 self.terminal.clean();
                 Terminal::show_cursor(true);
-                break
+                break;
             }
 
             if self.refresh_dir {
@@ -46,7 +45,6 @@ impl App {
 
                     self.dirs_in_dir.sort_by_key(|s| s.to_lowercase());
                     self.files_in_dir.sort_by_key(|s| s.to_lowercase());
-
                 }
             }
 
@@ -62,16 +60,20 @@ impl App {
     }
 
     pub fn default() -> Self {
-        App{
+        App {
             should_quit: false,
             terminal: Terminal::default().expect("Terminal initialisation failed."),
-            cursor: Position {x: 0, y: 0},
+            cursor: 0,
+            parent_cursor: 0,
             scroll: 0,
             mode: Mode::Normal,
             refresh_dir: true,
             dirs_in_dir: Vec::new(),
             files_in_dir: Vec::new(),
+            dirs_in_parent: Vec::new(),
+            files_in_parent: Vec::new(),
             current_dir: env::current_dir().unwrap(),
+            parent_dir: env::current_dir().unwrap().parent().unwrap().to_path_buf(),
             repeats: 0,
             command: String::new(),
         }
@@ -80,44 +82,35 @@ impl App {
     /// Do all the required screen drawing
     fn refresh_screen(&self) -> Result<(), std::io::Error> {
         Terminal::show_cursor(false);
-        Terminal::move_cursor_to(0, 0);
-        if self.should_quit {
-        }
-        else {
-            self.terminal.clear_screen();
-            Terminal::move_cursor_to(0, 0);
-            self.print_lines();
-            self.display_cursor();
-            match self.mode {
-                Mode::Command => {
-                    Terminal::move_cursor_to(0, self.terminal.dimensions().height);
-                    print!(":{}", self.command);
-                },
-                Mode::Insert => {
-
-                }
-                _ => ()
+        Terminal::move_cursor(0, 0);
+        self.terminal.clear_screen();
+        Terminal::move_cursor(0, 0);
+        self.print_lines();
+        self.display_cursor();
+        match self.mode {
+            Mode::Command => {
+                Terminal::move_cursor(0, self.terminal.dimensions().height);
+                print!(":{}", self.command);
             }
-            Terminal::move_cursor_to(0, 0);
+            _ => (),
         }
+        Terminal::move_cursor(0, 0);
         Terminal::flush()
     }
 
     /// The function that actually displays stuff to the screen
     fn print_lines(&self) {
         for (i, item) in self.dirs_in_dir.iter().enumerate() {
-            if i == self.cursor.y {
+            if i == self.cursor {
                 Terminal::print_blue_invert(item);
-            }
-            else {
+            } else {
                 Terminal::print_blue(item);
             }
         }
         for (i, item) in self.files_in_dir.iter().enumerate() {
-            if i + self.dirs_in_dir.len() == self.cursor.y {
+            if i + self.dirs_in_dir.len() == self.cursor {
                 Terminal::print_invert(item);
-            }
-            else {
+            } else {
                 print!("{}\n\r", item);
             }
         }
@@ -129,13 +122,10 @@ impl App {
         match self.mode {
             Mode::Normal => {
                 self.keypress_normal(pressed_key);
-            },
+            }
             Mode::Command => {
                 self.keypress_command(pressed_key);
-            },
-            Mode::Insert => {
-                self.keypress_insert(pressed_key);
-            },
+            }
             Mode::Select => {
                 self.keypress_select(pressed_key);
             }
@@ -150,46 +140,46 @@ impl App {
             Key::Up | Key::Char('k') => {
                 if self.repeats > 0 {
                     for _ in 0..self.repeats {
-                        self.move_cursor(0, -1);
+                        self.move_cursor(-1);
                     }
                     self.repeats = 0;
+                } else {
+                    self.move_cursor(-1);
                 }
-                else {
-                    self.move_cursor(0, -1);
-                }
-            },
+            }
             Key::Down | Key::Char('j') => {
                 if self.repeats > 0 {
                     for _ in 0..self.repeats {
-                        self.move_cursor(0, 1);
+                        self.move_cursor(1);
                     }
                     self.repeats = 0;
+                } else {
+                    self.move_cursor(1);
                 }
-                else {
-                    self.move_cursor(0, 1);
+            }
+            Key::Right | Key::Char('l') => {
+                if !self.cursor >= self.dirs_in_dir.len() {
+                    self.current_dir = self.current_dir.join(&self.dirs_in_dir[self.cursor]);
+                    self.refresh_dir();
                 }
-            },
+            }
             Key::Char(c) => {
                 if c.is_numeric() {
                     self.repeats *= 10;
                     self.repeats += c.to_digit(10).unwrap() as usize;
-                }
-                else {
+                } else {
                     match c {
                         ':' => {
                             self.mode = Mode::Command;
-                        },
-                        'i' => {
-                            self.mode = Mode::Insert;
-                        },
+                        }
                         'v' => {
                             self.mode = Mode::Select;
                         }
-                        _ => ()
+                        _ => (),
                     }
                 }
-            },
-            _ => ()
+            }
+            _ => (),
         }
     }
 
@@ -197,89 +187,85 @@ impl App {
     fn keypress_command(&mut self, key: termion::event::Key) {
         match key {
             Key::Ctrl('q') => self.should_quit = true,
-            Key::Left => self.move_cursor(-1, 0),
-            Key::Right => self.move_cursor(1, 0),
             Key::Esc => self.set_mode(Mode::Normal),
             Key::Char('\n') => {
-                self.set_mode(Mode::Normal);
                 self.execute_command();
+            }
+            Key::Backspace => {
+                self.command.pop();
             }
             Key::Char(c) => {
                 self.command.push(c);
-            },
-            _ => ()
-        }
-    }
-
-    /// Handle a keypress in Insert mode
-    fn keypress_insert(&mut self, key: termion::event::Key) {
-        match key {
-            Key::Ctrl('q') => self.should_quit = true,
-            Key::Up => self.move_cursor(0, -1),
-            Key::Down => self.move_cursor(0, 1),
-            Key::Esc => self.set_mode(Mode::Normal),
-            Key::Char(c) => {
-                match c {
-                    _ => ()
-                }
-            },
-            _ => ()
+            }
+            _ => (),
         }
     }
 
     fn keypress_select(&mut self, key: termion::event::Key) {
         match key {
             Key::Ctrl('q') => self.should_quit = true,
-            Key::Up => self.move_cursor(0, -1),
-            Key::Down => self.move_cursor(0, 1),
+            Key::Up => self.move_cursor(-1),
+            Key::Down => self.move_cursor(1),
             Key::Esc => self.mode = Mode::Normal,
-            Key::Char(c) => {
-                match c {
-                    ':' => {
-                        self.set_mode(Mode::Command);
-                    },
-                    'i' => {
-                        self.set_mode(Mode::Insert);
-                    },
-                    _ => ()
+            Key::Char(c) => match c {
+                ':' => {
+                    self.set_mode(Mode::Command);
                 }
+                _ => (),
             },
-            _ => ()
+            _ => (),
         }
     }
 
     fn execute_command(&mut self) {
-        if self.command == "q" {
-            self.should_quit = true;
+        let cmd: &str = &self.command.clone();
+        if utils::is_numeric(cmd) {
+            self.move_cursor_to(utils::string_to_usize(cmd) - 1);
+        }
+        match cmd {
+            "q" => {
+                self.quit()
+            }
+            _ => {
+
+            }
         }
         self.command = String::from("");
+        self.set_mode(Mode::Normal);
     }
 
     /// Move the app cursor (not necessarily the same as `Terminal::move_cursor`)
-    fn move_cursor(&mut self, x: isize, y: isize) {
-        match x {
-            0 => {},
-            1.. => self.cursor.x = self.cursor.x.saturating_add(x as usize),
-            _ => self.cursor.x = self.cursor.x.saturating_sub((-x) as usize)
+    fn move_cursor(&mut self, dif: isize) {
+        match dif {
+            0 => {}
+            1.. => self.cursor = self.cursor.saturating_add(dif as usize),
+            _ => self.cursor = self.cursor.saturating_sub((-dif) as usize),
         }
-        
-        match y {
-            0 => {},
-            1.. => self.cursor.y = self.cursor.y.saturating_add(y as usize),
-            _ => self.cursor.y = self.cursor.y.saturating_sub((-y) as usize)
-        }
-        if self.cursor.y >= self.dirs_in_dir.len() + self.files_in_dir.len() {
-            self.cursor.y = self.dirs_in_dir.len() + self.files_in_dir.len() - 1;
+        if self.cursor >= self.dirs_in_dir.len() + self.files_in_dir.len() {
+            self.cursor = self.dirs_in_dir.len() + self.files_in_dir.len() - 1;
         }
     }
 
+    fn move_cursor_to(&mut self, y: usize) {
+        self.cursor = y;
+    }
+
     fn display_cursor(&self) {
-        // To future me: Use self.scroll, self.cursor.x and self.cursor.y, shouldn't need any more
-        Terminal::move_cursor_to(self.cursor.x as u16, self.cursor.y as u16 - self.scroll as u16);
+        // To future me: Use self.scroll, and self.cursor.y, shouldn't need any more
+        Terminal::move_cursor(0, self.cursor as u16 - self.scroll as u16,
+        );
     }
 
     fn set_mode(&mut self, mode: Mode) {
         self.mode = mode;
+    }
+
+    fn refresh_dir(&mut self) {
+        self.refresh_dir = true;
+    }
+
+    fn quit(&mut self) {
+        self.should_quit = true;
     }
 }
 
