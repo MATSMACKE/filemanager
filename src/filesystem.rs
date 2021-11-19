@@ -35,5 +35,9 @@ pub fn get_items_to_vec(path: &Path) -> std::io::Result<(Vec<String>, Vec<String
             files.push(item.file_name().into_string().unwrap());
         }
     }
+
+    dirs.sort_by_key(|s| s.to_lowercase());
+    files.sort_by_key(|s| s.to_lowercase());
+
     Ok((dirs, files))
 }

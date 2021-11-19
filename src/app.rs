@@ -42,9 +42,13 @@ impl App {
                 if let Ok(items) = get_items_to_vec(&self.current_dir) {
                     self.dirs_in_dir = items.0;
                     self.files_in_dir = items.1;
+                }
 
-                    self.dirs_in_dir.sort_by_key(|s| s.to_lowercase());
-                    self.files_in_dir.sort_by_key(|s| s.to_lowercase());
+                self.parent_dir = self.current_dir.parent().unwrap().to_path_buf();
+
+                if let Ok(items) = get_items_to_vec(&self.parent_dir) {
+                    self.dirs_in_parent = items.0;
+                    self.files_in_parent = items.1;
                 }
             }
 
@@ -158,10 +162,18 @@ impl App {
                 }
             }
             Key::Right | Key::Char('l') => {
-                if !self.cursor >= self.dirs_in_dir.len() {
+                if self.cursor < self.dirs_in_dir.len() {
+                    self.parent_cursor = self.cursor;
+                    self.cursor = 0;
                     self.current_dir = self.current_dir.join(&self.dirs_in_dir[self.cursor]);
                     self.refresh_dir();
                 }
+            }
+            Key::Left | Key::Char('h') => {
+                self.current_dir = PathBuf::new();
+                self.current_dir.push(&self.parent_dir);
+                self.cursor = self.parent_cursor;
+                self.refresh_dir();
             }
             Key::Char(c) => {
                 if c.is_numeric() {
