@@ -27,11 +27,11 @@ pub fn get_items_to_vec(path: &Path) -> std::io::Result<(Vec<String>, Vec<String
     let mut files: Vec<String> = Vec::new();
 
     for item in fs::read_dir(path)? {
-        let item = item.unwrap();
-        if fs::metadata(item.path()).unwrap().is_dir() {
+        let item = item?;
+        if fs::metadata(item.path())?.is_dir() {
             dirs.push(item.file_name().into_string().unwrap());
         }
-        if fs::metadata(item.path()).unwrap().is_file() {
+        if fs::metadata(item.path())?.is_file() {
             files.push(item.file_name().into_string().unwrap());
         }
     }
