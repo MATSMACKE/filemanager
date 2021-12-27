@@ -22,7 +22,7 @@ pub fn read_file_to_vec(path: &Path) -> std::io::Result<Vec<String>> {
 /// # Errors
 /// - Path does not exist
 /// - No sudo permissions could cause issues
-pub fn get_contents(path: &Path) -> std::io::Result<(Vec<String>, Vec<String>)> {
+pub fn get_items_to_vec(path: &Path) -> std::io::Result<(Vec<String>, Vec<String>)> {
     let mut dirs: Vec<String> = Vec::new();
     let mut files: Vec<String> = Vec::new();
 

@@ -19,7 +19,7 @@ impl Terminal {
     /// Get the size of the current terminal
     /// # Errors
     /// No known possible errors, but better safe than sorry
-    pub fn new() -> Result<Self, std::io::Error> {
+    pub fn default() -> Result<Self, std::io::Error> {
         let dimensions = termion::terminal_size()?;
         Ok(Self {
             dimensions: Dimensions {
@@ -71,7 +71,6 @@ impl Terminal {
 
     /// Clear the screen
     pub fn clear_screen(&self) {
-        Terminal::move_cursor(0, 1);
         for _ in 0..self.dimensions().height {
             Terminal::clear_current_line();
             println!("\r");
